@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  AUTHOR
+  REVIEWER
+  ADMIN
+}
+
+enum ArticleStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+}
+
+enum ReviewAssignmentStatus {
+  PENDING
+  ACCEPTED
+  COMPLETED
+  DECLINED
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  email           String    @unique
+  password        String
+  role            UserRole  @default(AUTHOR)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  lastLoginAt     DateTime? @map("last_login_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  articles          Article[]
+  reviewAssignments ReviewAssignment[]
+  refreshTokens     RefreshToken[]
+
+  @@map("users")
+}
+
+model Journal {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  issn        String   @unique @db.VarChar(20)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  articles Article[]
+
+  @@map("journals")
+}
+
+model Article {
+  id               Int           @id @default(autoincrement())
+  title            String
+  userId           Int           @map("user_id")
+  journalId        Int           @map("journal_id")
+  abstract         String?       @db.Text
+  keywords         String?
+  filePath         String        @map("file_path")
+  fileSize         BigInt        @default(0) @map("file_size")
+  originalFilename String        @map("original_filename")
+  status           ArticleStatus @default(SUBMITTED)
+  reviewerNotes    String?       @map("reviewer_notes") @db.Text
+  doi              String?       @unique
+  doiStatus        String?       @map("doi_status") @db.VarChar(20)
+  indexStatus      String?       @map("index_status") @db.VarChar(20)
+  reviewedAt       DateTime?     @map("reviewed_at")
+  publishedAt      DateTime?     @map("published_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  journal           Journal            @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  reviewAssignments ReviewAssignment[]
+  views             ArticleView[]
+
+  @@index([status])
+  @@index([journalId, status])
+  @@index([createdAt])
+  @@map("articles")
+}
+
+model ReviewAssignment {
+  id         Int                    @id @default(autoincrement())
+  articleId  Int                    @map("article_id")
+  reviewerId Int                    @map("reviewer_id")
+  status     ReviewAssignmentStatus @default(PENDING)
+  dueDate    DateTime?              @map("due_date")
+  createdAt  DateTime               @default(now()) @map("created_at")
+  updatedAt  DateTime               @updatedAt @map("updated_at")
+
+  article  Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  reviewer User    @relation(fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, reviewerId])
+  @@map("review_assignments")
+}
+
+model ArticleView {
+  id        Int      @id @default(autoincrement())
+  articleId Int      @map("article_id")
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.Text
+  viewedAt  DateTime @default(now()) @map("viewed_at")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@map("article_views")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
