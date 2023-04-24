@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReviewController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -32,7 +33,9 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:reviewer,admin'])->prefix('review')->name('review.')->group(function () {
-    // Will be populated in Step 6 (article review feature)
+    Route::get('/', [ReviewController::class, 'index'])->name('index');
+    Route::get('/articles/{article}', [ReviewController::class, 'show'])->name('show');
+    Route::patch('/articles/{article}/status', [ReviewController::class, 'updateStatus'])->name('updateStatus');
 });
 
 /*
