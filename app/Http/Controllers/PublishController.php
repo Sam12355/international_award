@@ -1,0 +1,91 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Exceptions\ExternalApiException;
+use App\Models\Article;
+use App\Services\CrossRefService;
+use App\Services\ScholarIndexingService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
+
+class PublishController extends Controller
+{
+    public function __construct(
+        private readonly CrossRefService $crossRef,
+        private readonly ScholarIndexingService $scholar,
+    ) {}
+
+    /**
+     * Admin view of approved articles ready to publish.
+     */
+    public function index(): View
+    {
+        $articles = Article::with('journal', 'user')
+            ->where('status', 'approved')
+            ->latest()
+            ->paginate(20);
+
+        return view('admin.publish.index', compact('articles'));
+    }
+
+    /**
+     * Publish an approved article: register DOI + submit for indexing.
+     *
+     * Replaces the entire legacy publish_article.php script with proper
+     * error handling, transactions, and service-layer delegation.
+     */
+    public function publish(Request $request, Article $article): RedirectResponse
+    {
+        if ($article->status !== 'approved') {
+            return back()->with('error', 'Only approved articles can be published.');
+        }
+
+        $errors = [];
+
+        // Step 1: Register DOI via CrossRef
+        try {
+            $doiResult = $this->crossRef->registerDoi($article);
+            $article->doi = $doiResult['doi'];
+        } catch (ExternalApiException $e) {
+            Log::warning('Publish: CrossRef failed, continuing', [
+                'article_id' => $article->id,
+                'error'      => $e->getMessage(),
+            ]);
+            $errors[] = 'DOI registration failed — can be retried later.';
+        }
+
+        // Step 2: Submit to Google Scholar
+        try {
+            $this->scholar->submit($article);
+        } catch (ExternalApiException $e) {
+            Log::warning('Publish: Scholar indexing failed, continuing', [
+                'article_id' => $article->id,
+                'error'      => $e->getMessage(),
+            ]);
+            $errors[] = 'Scholar indexing failed — can be retried later.';
+        }
+
+        // Step 3: Mark as published
+        $article->status = 'published';
+        $article->published_at = now();
+        $article->save();
+
+        Log::info('Article published', [
+            'article_id' => $article->id,
+            'doi'        => $article->doi,
+        ]);
+
+        $message = 'Article published successfully.';
+        if ($errors) {
+            $message .= ' Warnings: ' . implode(' ', $errors);
+        }
+
+        return redirect()
+            ->route('admin.publish.index')
+            ->with($errors ? 'warning' : 'success', $message);
+    }
+}
