@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ArticleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublishController;
 use App\Http\Controllers\ReviewController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,7 +45,8 @@ Route::middleware(['auth', 'role:reviewer,admin'])->prefix('review')->name('revi
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Will be populated in Step 7 (publish + API)
+    Route::get('/publish', [PublishController::class, 'index'])->name('publish.index');
+    Route::post('/publish/{article}', [PublishController::class, 'publish'])->name('publish.publish');
 });
 
 require __DIR__.'/auth.php';
