@@ -24,12 +24,18 @@ class StoreArticleRequest extends FormRequest
      */
     public function rules(): array
     {
+        $maxSize = config('journal.max_file_size_kb', 10240);
+
+        $manuscriptRule = $this->isMethod('POST')
+            ? ['required', 'file', 'mimes:pdf,doc,docx', "max:{$maxSize}"]
+            : ['nullable', 'file', 'mimes:pdf,doc,docx', "max:{$maxSize}"];
+
         return [
             'title'      => ['required', 'string', 'max:255'],
             'journal_id' => ['required', 'exists:journals,id'],
             'abstract'   => ['required', 'string', 'min:50'],
             'keywords'   => ['nullable', 'string', 'max:500'],
-            'manuscript'  => ['required', 'file', 'mimes:pdf,doc,docx', "max:{$maxSize}"],
+            'manuscript'  => $manuscriptRule,
         ];
     }
 
