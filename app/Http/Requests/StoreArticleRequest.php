@@ -15,11 +15,6 @@ class StoreArticleRequest extends FormRequest
     }
 
     /**
-     * Validation rules for article submission.
-     *
-     * Replaces the loose empty() checks and extension comparisons
-     * from the legacy upload_article.php.
-     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -27,8 +22,8 @@ class StoreArticleRequest extends FormRequest
         $maxSize = config('journal.max_file_size_kb', 10240);
 
         $manuscriptRule = $this->isMethod('POST')
-            ? ['required', 'file', 'mimes:pdf,doc,docx', "max:{$maxSize}"]
-            : ['nullable', 'file', 'mimes:pdf,doc,docx', "max:{$maxSize}"];
+            ? ['required', 'file', 'mimes:pdf,doc,docx', 'mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', "max:{$maxSize}"]
+            : ['nullable', 'file', 'mimes:pdf,doc,docx', 'mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document', "max:{$maxSize}"];
 
         return [
             'title'      => ['required', 'string', 'max:255'],

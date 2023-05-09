@@ -48,6 +48,8 @@ class ArticlePolicy
 
     /**
      * Only the author may delete, and only before it has been approved/published.
+     *
+     * TODO: should we allow admins to soft-delete published articles?
      */
     public function delete(User $user, Article $article): bool
     {

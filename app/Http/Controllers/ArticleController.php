@@ -10,6 +10,7 @@ use App\Notifications\ArticleSubmitted;
 use App\Services\ArticleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class ArticleController extends Controller
@@ -37,7 +38,9 @@ class ArticleController extends Controller
      */
     public function create(): View
     {
-        $journals = Journal::active()->orderBy('name')->get();
+        $journals = Cache::remember('active_journals', config('journal.journal_cache_ttl', 300), function () {
+            return Journal::active()->orderBy('name')->get();
+        });
 
         return view('articles.create', compact('journals'));
     }
@@ -45,9 +48,8 @@ class ArticleController extends Controller
     /**
      * Store a new article submission.
      *
-     * Replaces the entire POST branch of legacy upload_article.php.
-     * Validation is handled by StoreArticleRequest; file storage and
-     * DB insert are delegated to ArticleService.
+     * Validation via StoreArticleRequest; file storage and DB insert
+     * delegated to ArticleService.
      */
     public function store(StoreArticleRequest $request): RedirectResponse
     {

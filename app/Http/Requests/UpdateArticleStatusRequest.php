@@ -15,9 +15,6 @@ class UpdateArticleStatusRequest extends FormRequest
     }
 
     /**
-     * Validation rules – replaces the manual in_array() check
-     * from the legacy review_article.php.
-     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array

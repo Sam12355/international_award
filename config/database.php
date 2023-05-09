@@ -49,9 +49,10 @@ return [
 
             /*
             |----------------------------------------------------------
-            | Read / Write splitting (replaces the old manual
-            | $conn / $conn_read approach from the legacy code).
-            | Laravel handles this transparently via Eloquent.
+            | Read / Write Connections
+            |----------------------------------------------------------
+            | Production uses a read replica for SELECT queries.
+            | Locally both point to the same host.
             |----------------------------------------------------------
             */
             'read' => [
