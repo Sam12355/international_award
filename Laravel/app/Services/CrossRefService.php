@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Log;
 /**
  * Handles DOI registration via the CrossRef deposit API.
  *
- * Replaces the raw cURL POST to CrossRef in legacy publish_article.php,
- * adding proper retry logic, SSL verification, and structured logging.
+ * Uses multipart XML deposit with basic auth. Retries up to 3×
+ * on transient failures.
  */
 class CrossRefService
 {
@@ -89,6 +89,9 @@ class CrossRefService
 
     /**
      * Build the CrossRef deposit XML payload.
+     *
+     * TODO: switch to a proper XML builder (e.g. sabre/xml) once we
+     *       need to support multi-author deposits.
      */
     private function buildDepositXml(Article $article): string
     {

@@ -8,10 +8,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Submits articles to the Google Scholar indexing endpoint.
+ * Submits article metadata to the Google Scholar indexing endpoint.
  *
- * Replaces the raw cURL JSON POST in legacy publish_article.php,
- * adding retry logic, proper error handling, and logging.
+ * JSON POST with Bearer auth. Retries up to 3× on transient failures.
  */
 class ScholarIndexingService
 {

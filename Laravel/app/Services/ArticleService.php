@@ -14,8 +14,8 @@ class ArticleService
     /**
      * Store a new article submission with its manuscript file.
      *
-     * Replaces the legacy upload_article.php which mixed file handling,
-     * raw SQL inserts and email sending in a single procedural script.
+     * Wraps file storage + DB insert in a transaction so we don't end up
+     * with orphaned files if the insert fails.
      */
     public function store(array $validated, UploadedFile $file, User $author): Article
     {
@@ -46,8 +46,6 @@ class ArticleService
 
     /**
      * Update the review status of an article.
-     *
-     * Replaces the raw UPDATE query from review_article.php.
      */
     public function updateStatus(Article $article, string $status, ?string $reviewerNotes = null): Article
     {
@@ -56,6 +54,8 @@ class ArticleService
             'reviewer_notes' => $reviewerNotes,
             'reviewed_at'    => now(),
         ]);
+
+        // TODO: dispatch ArticleStatusChanged event instead of handling notification in controller
 
         Log::info('Article status updated', [
             'article_id' => $article->id,

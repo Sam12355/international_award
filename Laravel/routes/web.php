@@ -47,6 +47,7 @@ Route::middleware(['auth', 'role:reviewer,admin'])->prefix('review')->name('revi
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/publish', [PublishController::class, 'index'])->name('publish.index');
     Route::post('/publish/{article}', [PublishController::class, 'publish'])->name('publish.publish');
+    // TODO: add admin article search / bulk status update routes
 });
 
 require __DIR__.'/auth.php';

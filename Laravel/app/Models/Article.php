@@ -71,13 +71,18 @@ class Article extends Model
         return $query->where('status', 'published');
     }
 
+    public function scopeSubmittedBefore($query, $date)
+    {
+        return $query->where('created_at', '<', $date);
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Helpers                                                            */
     /* ------------------------------------------------------------------ */
 
     public function reference(): string
     {
-        return sprintf('SJP-%02d-%05d', $this->journal_id, $this->id);
+        return sprintf(config('journal.reference_format', 'SJP-%02d-%05d'), $this->journal_id, $this->id);
     }
 
     public function isApproved(): bool

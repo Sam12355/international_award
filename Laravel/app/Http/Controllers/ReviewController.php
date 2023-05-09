@@ -22,9 +22,11 @@ class ReviewController extends Controller
     public function index(Request $request): View
     {
         $articles = Article::with('journal', 'user')
-            ->whereIn('status', ['submitted', 'under_review'])
+            ->whereIn('status', config('journal.reviewable_statuses', ['submitted', 'under_review']))
             ->latest()
             ->paginate(20);
+
+        // TODO: filter by reviewer assignment once we enforce assignment workflow
 
         return view('review.index', compact('articles'));
     }
@@ -43,8 +45,6 @@ class ReviewController extends Controller
 
     /**
      * Update the article status (approve / reject / mark under review).
-     *
-     * Replaces the POST branch of legacy review_article.php.
      */
     public function updateStatus(UpdateArticleStatusRequest $request, Article $article): RedirectResponse
     {

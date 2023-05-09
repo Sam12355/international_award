@@ -35,8 +35,9 @@ class PublishController extends Controller
     /**
      * Publish an approved article: register DOI + submit for indexing.
      *
-     * Replaces the entire legacy publish_article.php script with proper
-     * error handling, transactions, and service-layer delegation.
+     * Partial failures are handled gracefully — if CrossRef or Scholar
+     * is down, the article still gets published and the failed step
+     * can be retried later.
      */
     public function publish(Request $request, Article $article): RedirectResponse
     {
@@ -47,6 +48,7 @@ class PublishController extends Controller
         $errors = [];
 
         // Step 1: Register DOI via CrossRef
+        // TODO: move this to a queued job so the admin doesn't wait for the API call
         try {
             $doiResult = $this->crossRef->registerDoi($article);
             $article->doi = $doiResult['doi'];
