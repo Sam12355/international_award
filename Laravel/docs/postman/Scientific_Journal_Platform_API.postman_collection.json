@@ -1,0 +1,318 @@
+{
+  "info": {
+    "name": "Scientific Journal Platform API",
+    "description": "API collection for the Scientific Journal Platform.\n\nAuthentication: all requests use a Sanctum Bearer token.\nSet the `base_url` and `token` collection variables before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Sanctum Bearer token — generate via: php artisan tinker → User::first()->createToken('postman')->plainTextToken"
+    },
+    {
+      "key": "article_id",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/user",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Journals",
+      "item": [
+        {
+          "name": "List Active Journals",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/journals",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has data array', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Articles",
+      "item": [
+        {
+          "name": "List My Articles",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/articles?per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["articles"],
+              "query": [
+                { "key": "per_page", "value": "10" },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            },
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has pagination meta', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.meta).to.have.property('total');",
+                  "  pm.expect(body.meta).to.have.property('per_page');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Submit New Article",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/articles",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Effect of Cover Crop Rotation on Soil Nitrogen Retention in Semi-Arid Regions", "type": "text" },
+                { "key": "journal_id", "value": "1", "type": "text" },
+                { "key": "abstract", "value": "This study evaluates the impact of leguminous cover crop rotation on soil nitrogen retention and subsequent cash crop yields across three growing seasons in semi-arid agricultural zones.", "type": "text" },
+                { "key": "keywords", "value": "cover crops, nitrogen retention, soil health, semi-arid", "type": "text" },
+                { "key": "manuscript", "type": "file", "src": "" , "description": "Select a PDF/DOC/DOCX file (max 10 MB)" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('Returns article data', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.have.property('id');",
+                  "  pm.expect(body.data.status).to.equal('submitted');",
+                  "  // Save article_id for subsequent requests",
+                  "  pm.collectionVariables.set('article_id', body.data.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Article by ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/articles/{{article_id}}",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has article data', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data).to.have.property('title');",
+                  "  pm.expect(body.data).to.have.property('status');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Article",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/articles/{{article_id}}",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated: Effect of Cover Crop Rotation on Soil Nitrogen Retention\",\n  \"journal_id\": 1,\n  \"abstract\": \"This revised study evaluates the impact of leguminous cover crop rotation on soil nitrogen retention and subsequent cash crop yields, incorporating reviewer feedback on methodology.\",\n  \"keywords\": \"cover crops, nitrogen retention, soil health, crop rotation\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Title updated', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.title).to.include('Updated');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Article",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/articles/{{article_id}}",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Deletion confirmed', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.message).to.include('deleted');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Submit Article — Missing Fields (422)",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/articles",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                  "pm.test('Has validation errors', () => {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.errors).to.have.property('title');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Article — Not Found (404)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/articles/99999",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unauthenticated (401)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/articles",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "auth": { "type": "noauth" }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
