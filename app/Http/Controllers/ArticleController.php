@@ -6,7 +6,6 @@ use App\Http\Requests\StoreArticleRequest;
 use App\Http\Requests\UpdateArticleStatusRequest;
 use App\Models\Article;
 use App\Models\Journal;
-use App\Notifications\ArticleSubmitted;
 use App\Services\ArticleService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -58,8 +57,6 @@ class ArticleController extends Controller
             $request->file('manuscript'),
             $request->user(),
         );
-
-        $request->user()->notify(new ArticleSubmitted($article));
 
         return redirect()
             ->route('articles.show', $article)

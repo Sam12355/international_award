@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Article;
 use App\Models\User;
+use App\Notifications\ArticleSubmitted;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -31,7 +32,6 @@ class ArticleService
                 'file_path'         => $path,
                 'file_size'         => $file->getSize(),
                 'original_filename' => $file->getClientOriginalName(),
-                'status'            => 'submitted',
             ]);
 
             Log::info('Article submitted', [
@@ -39,6 +39,8 @@ class ArticleService
                 'user_id'    => $author->id,
                 'file_size'  => $article->file_size,
             ]);
+
+            $author->notify(new ArticleSubmitted($article));
 
             return $article;
         });
@@ -49,11 +51,10 @@ class ArticleService
      */
     public function updateStatus(Article $article, string $status, ?string $reviewerNotes = null): Article
     {
-        $article->update([
-            'status'         => $status,
-            'reviewer_notes' => $reviewerNotes,
-            'reviewed_at'    => now(),
-        ]);
+        $article->status = $status;
+        $article->reviewer_notes = $reviewerNotes;
+        $article->reviewed_at = now();
+        $article->save();
 
         // TODO: dispatch ArticleStatusChanged event instead of handling notification in controller
 
