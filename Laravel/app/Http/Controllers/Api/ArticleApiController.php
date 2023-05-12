@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreArticleRequest;
+use App\Http\Resources\ArticleResource;
+use App\Http\Resources\JournalResource;
 use App\Models\Article;
 use App\Models\Journal;
-use App\Notifications\ArticleSubmitted;
 use App\Services\ArticleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -42,15 +43,7 @@ class ArticleApiController extends Controller
             $request->integer('per_page', 15),
         );
 
-        return response()->json([
-            'data' => $articles->items(),
-            'meta' => [
-                'current_page' => $articles->currentPage(),
-                'last_page'    => $articles->lastPage(),
-                'per_page'     => $articles->perPage(),
-                'total'        => $articles->total(),
-            ],
-        ]);
+        return ArticleResource::collection($articles)->response();
     }
 
     /**
@@ -66,12 +59,10 @@ class ArticleApiController extends Controller
             $request->user(),
         );
 
-        $request->user()->notify(new ArticleSubmitted($article));
-
-        return response()->json([
-            'data'    => $article->load('journal:id,name'),
-            'message' => 'Article submitted. Reference: ' . $article->reference(),
-        ], 201);
+        return (new ArticleResource($article->load('journal')))
+            ->additional(['message' => 'Article submitted. Reference: ' . $article->reference()])
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
@@ -83,9 +74,9 @@ class ArticleApiController extends Controller
     {
         $this->authorize('view', $article);
 
-        $article->load('journal:id,name', 'user:id,name', 'reviewAssignments.reviewer:id,name');
+        $article->load('journal', 'user', 'reviewAssignments.reviewer');
 
-        return response()->json(['data' => $article]);
+        return (new ArticleResource($article))->response();
     }
 
     /**
@@ -101,10 +92,9 @@ class ArticleApiController extends Controller
             $request->safe()->only(['title', 'abstract', 'keywords', 'journal_id']),
         );
 
-        return response()->json([
-            'data'    => $article->fresh('journal:id,name'),
-            'message' => 'Article updated.',
-        ]);
+        return (new ArticleResource($article->fresh('journal')))
+            ->additional(['message' => 'Article updated.'])
+            ->response();
     }
 
     /**
@@ -116,7 +106,7 @@ class ArticleApiController extends Controller
 
         $this->articleService->delete($article);
 
-        return response()->json(['message' => 'Article deleted.'], 200);
+        return response()->json(null, 204);
     }
 
     /**
@@ -127,9 +117,9 @@ class ArticleApiController extends Controller
     public function journals(): JsonResponse
     {
         $journals = Cache::remember('active_journals', config('journal.journal_cache_ttl', 300), function () {
-            return Journal::active()->orderBy('name')->get(['id', 'name', 'issn']);
+            return Journal::active()->orderBy('name')->get();
         });
 
-        return response()->json(['data' => $journals]);
+        return JournalResource::collection($journals)->response();
     }
 }

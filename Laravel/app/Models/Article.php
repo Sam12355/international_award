@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Article extends Model
 {
@@ -18,13 +20,7 @@ class Article extends Model
         'file_path',
         'file_size',
         'original_filename',
-        'status',
         'reviewer_notes',
-        'doi',
-        'doi_status',
-        'index_status',
-        'reviewed_at',
-        'published_at',
     ];
 
     protected $casts = [
@@ -37,22 +33,22 @@ class Article extends Model
     /*  Relationships                                                      */
     /* ------------------------------------------------------------------ */
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function journal()
+    public function journal(): BelongsTo
     {
         return $this->belongsTo(Journal::class);
     }
 
-    public function reviewAssignments()
+    public function reviewAssignments(): HasMany
     {
         return $this->hasMany(ReviewAssignment::class);
     }
 
-    public function views()
+    public function views(): HasMany
     {
         return $this->hasMany(ArticleView::class);
     }
