@@ -4,6 +4,14 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates reviewer-initiated status updates on articles.
+ *
+ * Authorization is handled inline — only users with reviewer or admin
+ * roles may issue this request.
+ *
+ * @see \App\Services\ArticleService::updateStatus()
+ */
 class UpdateArticleStatusRequest extends FormRequest
 {
     /**
@@ -15,6 +23,8 @@ class UpdateArticleStatusRequest extends FormRequest
     }
 
     /**
+     * Get the validation rules for status transitions.
+     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array

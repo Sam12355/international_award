@@ -4,6 +4,16 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+/**
+ * Validates article creation and update requests.
+ *
+ * Manuscript upload is required for creation (POST) but optional
+ * for updates (PUT/PATCH). Maximum file size is driven by the
+ * `journal.max_file_size_kb` config value.
+ *
+ * @see \App\Http\Controllers\ArticleController::store()
+ * @see \App\Http\Controllers\Api\ArticleApiController::store()
+ */
 class StoreArticleRequest extends FormRequest
 {
     /**
@@ -15,6 +25,11 @@ class StoreArticleRequest extends FormRequest
     }
 
     /**
+     * Get the validation rules for article submission.
+     *
+     * Manuscript validation differs by HTTP method — required on POST
+     * (new submission), optional on PUT (metadata-only update).
+     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array

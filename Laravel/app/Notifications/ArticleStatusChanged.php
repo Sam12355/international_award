@@ -8,6 +8,12 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\Article;
 
+/**
+ * Queued notification sent when a reviewer changes an article's status.
+ *
+ * Includes both the previous and new status, plus optional reviewer notes.
+ * Useful for keeping authors informed throughout the peer-review process.
+ */
 class ArticleStatusChanged extends Notification implements ShouldQueue
 {
     use Queueable;
@@ -25,6 +31,13 @@ class ArticleStatusChanged extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    /**
+     * Build the mail representation of the notification.
+     *
+     * Includes reviewer notes when provided.
+     *
+     * @param  User $notifiable  The article's author
+     */
     public function toMail(object $notifiable): MailMessage
     {
         $mail = (new MailMessage)
