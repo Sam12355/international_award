@@ -10,13 +10,28 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * Encapsulates the core business logic for article lifecycle operations.
+ *
+ * Handles file storage, database persistence, logging, and notifications
+ * for article submission, status transitions, and deletion. All write
+ * operations are wrapped in transactions where appropriate.
+ */
 class ArticleService
 {
     /**
      * Store a new article submission with its manuscript file.
      *
      * Wraps file storage + DB insert in a transaction so we don't end up
-     * with orphaned files if the insert fails.
+     * with orphaned files if the insert fails. Dispatches a queued
+     * notification to the author on success.
+     *
+     * @param  array<string, mixed> $validated  Validated form data from StoreArticleRequest
+     * @param  UploadedFile         $file       The uploaded manuscript (PDF/DOC/DOCX)
+     * @param  User                 $author     The authenticated user submitting the article
+     * @return Article              The newly created article instance
+     *
+     * @throws \Throwable  If the transaction fails (file is cleaned up automatically)
      */
     public function store(array $validated, UploadedFile $file, User $author): Article
     {
@@ -47,7 +62,16 @@ class ArticleService
     }
 
     /**
-     * Update the review status of an article.
+     * Transition an article to a new workflow status.
+     *
+     * Sets the status, optional reviewer notes, and timestamps the review.
+     * Uses direct property assignment to bypass mass-assignment protection
+     * since these are system-controlled fields.
+     *
+     * @param  Article     $article        The article to update
+     * @param  string      $status         Target status (approved, rejected, etc.)
+     * @param  string|null $reviewerNotes  Optional feedback from the reviewer
+     * @return Article     A fresh instance reflecting the persisted state
      */
     public function updateStatus(Article $article, string $status, ?string $reviewerNotes = null): Article
     {
@@ -68,6 +92,11 @@ class ArticleService
 
     /**
      * Delete an article and its associated manuscript file.
+     *
+     * Removes the physical file from storage before deleting the database
+     * record. Silently skips file deletion if the file no longer exists.
+     *
+     * @param  Article $article  The article to remove
      */
     public function delete(Article $article): void
     {

@@ -5,6 +5,16 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * JSON API resource for article responses.
+ *
+ * Provides a consistent, API-safe transformation layer that:
+ * - Excludes internal fields (file_path, doi_status, index_status)
+ * - Formats dates as ISO 8601 strings
+ * - Conditionally includes related resources via `whenLoaded()`
+ *
+ * @mixin \App\Models\Article
+ */
 class ArticleResource extends JsonResource
 {
     /**

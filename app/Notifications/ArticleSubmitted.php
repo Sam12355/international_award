@@ -8,6 +8,14 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Models\Article;
 
+/**
+ * Queued notification sent to the author when a new article is submitted.
+ *
+ * Delivers a confirmation email containing the article reference code,
+ * title, and a link to the article detail page.
+ *
+ * @see \App\Services\ArticleService::store()  Dispatched from the service layer
+ */
 class ArticleSubmitted extends Notification implements ShouldQueue
 {
     use Queueable;
@@ -24,6 +32,11 @@ class ArticleSubmitted extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    /**
+     * Build the mail representation of the notification.
+     *
+     * @param  User $notifiable  The article's author
+     */
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)

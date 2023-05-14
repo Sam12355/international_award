@@ -16,7 +16,12 @@ use Illuminate\Support\Facades\Cache;
 /**
  * RESTful JSON API for articles.
  *
- * All endpoints require Sanctum token authentication.
+ * All endpoints require Sanctum token authentication. Responses use
+ * dedicated API Resource classes to ensure a consistent, versioned
+ * payload structure.
+ *
+ * @see \App\Http\Resources\ArticleResource
+ * @see \App\Http\Resources\JournalResource
  */
 class ArticleApiController extends Controller
 {
@@ -28,6 +33,7 @@ class ArticleApiController extends Controller
      * GET /api/articles
      *
      * List the authenticated user's articles with optional status filter.
+     * Supports `?status=submitted` and `?per_page=25` query parameters.
      */
     public function index(Request $request): JsonResponse
     {
@@ -50,6 +56,7 @@ class ArticleApiController extends Controller
      * POST /api/articles
      *
      * Submit a new article with manuscript upload.
+     * Returns 201 with the created resource and reference code.
      */
     public function store(StoreArticleRequest $request): JsonResponse
     {
@@ -68,7 +75,8 @@ class ArticleApiController extends Controller
     /**
      * GET /api/articles/{article}
      *
-     * Show a single article with relationships.
+     * Show a single article with journal, author, and review data.
+     * Policy-protected: authors see own articles, reviewers see all.
      */
     public function show(Article $article): JsonResponse
     {
@@ -83,6 +91,7 @@ class ArticleApiController extends Controller
      * PUT /api/articles/{article}
      *
      * Update article metadata (only while status = submitted).
+     * Uses `safe()->only()` to prevent mass-assignment of system fields.
      */
     public function update(StoreArticleRequest $request, Article $article): JsonResponse
     {
@@ -99,6 +108,8 @@ class ArticleApiController extends Controller
 
     /**
      * DELETE /api/articles/{article}
+     *
+     * Remove an article and its manuscript file. Returns 204 No Content.
      */
     public function destroy(Article $article): JsonResponse
     {
@@ -113,6 +124,7 @@ class ArticleApiController extends Controller
      * GET /api/journals
      *
      * List active journals for the submission form dropdown.
+     * Results are cached for the duration configured in `journal.journal_cache_ttl`.
      */
     public function journals(): JsonResponse
     {

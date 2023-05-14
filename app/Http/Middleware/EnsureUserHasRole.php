@@ -6,6 +6,15 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Gate middleware that restricts route access to specific user roles.
+ *
+ * Register in the HTTP kernel as `role` and attach to routes:
+ *
+ *     Route::middleware('role:admin,reviewer')->group(...);
+ *
+ * Returns 403 if the authenticated user's role is not in the allowed list.
+ */
 class EnsureUserHasRole
 {
     /**

@@ -8,6 +8,25 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+/**
+ * Platform user — can be an author, reviewer, or admin.
+ *
+ * Roles are stored as a simple string column (`author`, `reviewer`, `admin`).
+ * Reviewers inherit all author capabilities; admins bypass all policy checks.
+ *
+ * @property int         $id
+ * @property string      $name
+ * @property string      $email
+ * @property string      $role
+ * @property string      $password
+ * @property \Illuminate\Support\Carbon|null $email_verified_at
+ * @property \Illuminate\Support\Carbon|null $last_login_at
+ * @property \Illuminate\Support\Carbon      $created_at
+ * @property \Illuminate\Support\Carbon      $updated_at
+ *
+ * @property-read \Illuminate\Database\Eloquent\Collection<Article>          $articles
+ * @property-read \Illuminate\Database\Eloquent\Collection<ReviewAssignment> $reviewAssignments
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
@@ -49,11 +68,13 @@ class User extends Authenticatable
     /*  Relationships                                                      */
     /* ------------------------------------------------------------------ */
 
+    /** Get all articles authored by this user. */
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);
     }
 
+    /** Get review assignments where this user is the reviewer. */
     public function reviewAssignments(): HasMany
     {
         return $this->hasMany(ReviewAssignment::class, 'reviewer_id');
@@ -63,11 +84,17 @@ class User extends Authenticatable
     /*  Helpers                                                            */
     /* ------------------------------------------------------------------ */
 
+    /** Determine if the user has administrator privileges. */
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
     }
 
+    /**
+     * Determine if the user can perform reviews.
+     *
+     * Admins implicitly have reviewer capabilities.
+     */
     public function isReviewer(): bool
     {
         return $this->role === 'reviewer' || $this->isAdmin();
