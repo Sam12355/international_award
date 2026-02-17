@@ -1,114 +1,119 @@
-# Scientific Journal Platform - Article Lifecycle Module
+<!-- Extracted from wiki: Scientific Journal Platform / Modules / Article Lifecycle -->
 
-> **Note:** This is a vertical slice extracted from our main repository to demonstrate the article submission → review → publish pipeline. I've copied the relevant code and documentation from the full project README and wiki. The production system includes additional modules (user management, editorial board, analytics dashboard, billing, notification preferences) that aren't shown here.
+# Article Lifecycle Module
 
----
-
-## Overview
-
-This module covers the core article lifecycle:
-
-1. **Submit** - Authors upload manuscripts with metadata
-2. **Review** - Assigned reviewers evaluate and set status
-3. **Publish** - Admins trigger DOI registration (CrossRef) and indexing (Google Scholar)
-
-The legacy PHP implementation (2015) is in the root directory. The Laravel 10 rewrite is under `Laravel/`.
+Pulled this vertical slice out of the main SJP repo as a standalone code sample. This is just the article submission → review → publish pipeline. The rest of the system (editorial board, analytics, billing, etc.) lives in the main repo and isn't included here. Docs below are from the relevant wiki pages.
 
 ---
 
-## Running Locally
+## 1. Overview
+
+Handles the end-to-end article lifecycle:
+
+| Stage | Actor | What happens |
+|-------|-------|--------------|
+| Submission | Author | Creates article record, uploads manuscript (PDF/DOCX), associates with a journal |
+| Review | Reviewer | Evaluates submission from queue, transitions status (approve / reject) |
+| Publication | Admin | Publishes approved articles - registers DOI via CrossRef and indexes on Google Scholar |
+
+## 2. Running This Module
 
 ```bash
 cd Laravel
 composer install
-cp .env.example .env
+cp .env.example .env        # see .env.example for CrossRef/Scholar credentials
 php artisan key:generate
 php artisan migrate --seed
 npm install && npm run build
 php artisan serve
 ```
 
-Default accounts created by the seeder:
-- `admin@sjplatform.local` (admin)
-- `reviewer@sjplatform.local` (reviewer)
+Seeded accounts: `admin@sjplatform.local` / `reviewer@sjplatform.local` (password: `password`). New registrations default to `author` role.
 
-### Tests
+Tests: `php artisan test` - runs on SQLite in-memory, no MySQL needed.
 
-```bash
-php artisan test
-```
-
-SQLite in-memory - no MySQL setup needed.
-
----
-
-## Architecture (this module)
+## 3. Module Structure
 
 ```
 app/
-├── Http/Controllers/
-│   ├── ArticleController.php         # Author-facing CRUD
-│   ├── ReviewController.php          # Reviewer queue + status updates
-│   ├── PublishController.php         # DOI registration + indexing
-│   └── Api/ArticleApiController.php  # JSON API (Sanctum)
-├── Http/Requests/                    # Form request validation
-├── Http/Middleware/
-│   └── EnsureUserHasRole.php         # Role gate
+├── Http/
+│   ├── Controllers/
+│   │   ├── ArticleController.php           # Author CRUD
+│   │   ├── ReviewController.php            # Reviewer queue & status transitions
+│   │   ├── PublishController.php           # DOI + Scholar indexing
+│   │   └── Api/ArticleApiController.php    # Sanctum-authenticated REST API
+│   ├── Requests/
+│   │   ├── StoreArticleRequest.php         # MIME + extension + size validation
+│   │   └── UpdateArticleStatusRequest.php
+│   └── Middleware/
+│       └── EnsureUserHasRole.php
 ├── Models/
-│   ├── Article.php                   # Core model - 15 fields, scopes, relationships
+│   ├── Article.php                         # config-driven reference(), scopes
 │   ├── Journal.php
 │   ├── ReviewAssignment.php
 │   └── ArticleView.php
 ├── Services/
-│   ├── ArticleService.php            # Submission + status logic
-│   ├── CrossRefService.php           # DOI registration (XML deposit, 3× retry)
-│   └── ScholarIndexingService.php    # Scholar indexing (JSON, 3× retry)
-├── Policies/ArticlePolicy.php        # Owner/reviewer/admin auth
-├── Notifications/                    # Queued emails
+│   ├── ArticleService.php                  # DB::transaction for writes
+│   ├── CrossRefService.php                 # 3x retry, XML deposit
+│   └── ScholarIndexingService.php          # 3x retry, JSON POST
+├── Policies/ArticlePolicy.php              # before() admin bypass
+├── Notifications/
+│   ├── ArticleSubmitted.php
+│   └── ArticleStatusChanged.php
 └── Exceptions/ExternalApiException.php
 ```
 
-### Design Decisions
+## 4. Module Configuration
 
-- **Service layer** - Controllers are thin, business logic lives in `app/Services/`. Reused across web and API controllers.
-- **Form Requests** - `StoreArticleRequest` handles manuscript validation (MIME type + extension + size). `UpdateArticleStatusRequest` enforces allowed transitions.
-- **Policy auth** - `ArticlePolicy` with `before()` admin bypass. Authors can only edit own articles in `submitted` status.
-- **Read/write DB split** - `config/database.php` with sticky reads. Production reads go to replica.
-- **External API resilience** - CrossRef and Scholar services retry 3× with timeouts. `ExternalApiException` lets the publish action handle partial failures without blocking.
-- **Config** - Domain-specific settings (reference format, allowed statuses, cache TTL) are in `config/journal.php` rather than hardcoded.
+All article-lifecycle-specific settings live in `config/journal.php`:
 
----
+| Key | Default | Description |
+|-----|---------|-------------|
+| `max_file_size_kb` | `10240` | Manuscript upload limit (KB) |
+| `allowed_extensions` | `['pdf','doc','docx']` | Permitted file types |
+| `reference_format` | `'SJP-%02d-%05d'` | Article reference ID pattern (`journal_id`, `article_id`) |
+| `statuses` | `['submitted','under_review','approved','rejected','published']` | Lifecycle states |
+| `reviewable_statuses` | `['submitted','under_review']` | Which statuses appear in reviewer queue |
+| `journal_cache_ttl` | `300` | Journal list cache TTL (seconds) |
 
-## API Endpoints
+External service credentials (`CROSSREF_*`, `SCHOLAR_*`) and `MANUSCRIPT_MAX_SIZE_KB` / `JOURNAL_CACHE_TTL` are set via `.env` - see `.env.example`.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/articles` | List articles (`?status=` filter, paginated) |
-| `POST` | `/api/articles` | Submit article (multipart w/ manuscript) |
-| `GET` | `/api/articles/{id}` | Detail with journal + reviewer relationships |
-| `PUT` | `/api/articles/{id}` | Update metadata (submitted status only) |
-| `DELETE` | `/api/articles/{id}` | Delete article |
+## 5. API Endpoints
+
+Sanctum-authenticated, rate-limited (`throttle:api`).
+
+| Method | URI | Description |
+|--------|-----|-------------|
+| `GET` | `/api/articles` | Paginated list, filterable with `?status=` |
+| `POST` | `/api/articles` | Create with manuscript upload (`multipart/form-data`) |
+| `GET` | `/api/articles/{id}` | Detail with journal, user, reviews |
+| `PUT` | `/api/articles/{id}` | Update metadata (only when `submitted`) |
+| `DELETE` | `/api/articles/{id}` | Delete |
 | `GET` | `/api/journals` | Active journals (cached) |
 
-Rate-limited via `throttle:api`. Auth via Sanctum tokens.
+Postman collection with test scripts: `docs/postman/`
 
-Postman collection: `docs/postman/Scientific_Journal_Platform_API.postman_collection.json`
+## 6. Tests
 
----
+| Test Class | Tests | Covers |
+|------------|-------|--------|
+| `ArticleSubmissionTest` | 9 | CRUD, validation, file upload, auth |
+| `ArticleReviewTest` | 8 | Queue, status transitions, role checks |
+| `ArticlePolicyTest` | 10 | Policy methods, admin bypass, ownership |
 
-## Tooling
+52 total tests, 127 assertions. Parallel execution supported (`php artisan test --parallel`).
 
-| Tool | Location | Purpose |
-|------|----------|---------|
-| **Postman** | `docs/postman/` | API collection with test scripts for all endpoints + error scenarios |
-| **JMeter** | `docs/jmeter/` | Load test plan - 50 concurrent users, 3 endpoints |
-| **Xdebug** | `docs/xdebug/` + `.vscode/launch.json` | Step debugging for requests and PHPUnit |
-| **Telescope** | `/telescope` (admin only) | Runtime query/exception/job monitoring |
-| **GitHub Actions** | `.github/workflows/tests.yml` | PHP 8.1/8.2 test matrix on push/PR |
-| **Jenkins** | `Jenkinsfile` | Full pipeline: test → build → deploy (staging auto, prod manual gate) |
+## 7. Tooling
 
----
+| Tool | Location | Notes |
+|------|----------|-------|
+| Postman | `docs/postman/` | Full collection with error scenario tests |
+| JMeter | `docs/jmeter/` | 50-thread load test for API endpoints |
+| Xdebug | `docs/xdebug/` + `.vscode/launch.json` | 3 launch configs (listen, serve, PHPUnit) |
+| Telescope | `/telescope` | Admin-only, local/staging environments |
 
-## Contributing
+## 8. Notes
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for branching, commit conventions, and the review checklist.
+- Publish handles external API failures gracefully - CrossRef and Scholar fail independently, so partial success is possible
+- DB configured with read/write split + sticky reads (`config/database.php`)
+- See [CONTRIBUTING.md](../CONTRIBUTING.md) for branching/commit conventions, [CHANGELOG.md](CHANGELOG.md) for release history
